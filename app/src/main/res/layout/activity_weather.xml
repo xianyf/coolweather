@@ -5,8 +5,12 @@
     android:layout_height="match_parent"
     android:background="@color/colorPrimary">
 
-
-
+    <ImageView
+        android:id="@+id/bing_pic_img"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:src="@drawable/bg"
+        android:scaleType="centerCrop" />
 
             <ScrollView
                 android:id="@+id/weather_layout"
@@ -15,11 +19,13 @@
                 android:scrollbars="none"
                 android:overScrollMode="never">
 
+  <!--  android:fitsSystemWindows="true" 表示系统会为 状态栏 留出空间-->
                 <LinearLayout
                     android:orientation="vertical"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:fitsSystemWindows="true">
+                    android:fitsSystemWindows="true"
+                    >
 
                     <include layout="@layout/title" />
 

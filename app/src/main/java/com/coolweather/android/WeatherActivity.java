@@ -1,17 +1,21 @@
 package com.coolweather.android;
 
 import android.content.SharedPreferences;
+import android.graphics.Color;
+import android.os.Build;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.support.v7.app.AppCompatActivity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.bumptech.glide.Glide;
 import com.coolweather.android.gson.Forecast;
 import com.coolweather.android.gson.Weather;
 import com.coolweather.android.util.HttpUtil;
@@ -65,6 +69,32 @@ import okhttp3.Response;
 444
    另外 ,还需要在MainActivity 中 加入一个 缓存数据 的判断才行 //
  */
+
+//-------------------------------------------------------------------------------------------------
+
+/**  每日一图
+  [0] 在FrameLayout布局下,添加一个ImageView,宽高match_parent, 默认情况都是将控件放置左上角,因此ScrollView完全覆盖ImageView, ImageView就成了背景图
+ FrameLayout 是一层一层叠的
+  [1] 首先在onCreate()方法中获取新增控件 ImageView 的实例 ,然后尝试从SharePreference 中读取缓存的背景图片
+    如果有缓存的话 ,就直接使用Glide 来加载这张图片 ,如果没有的话就调用 loadBingPic() 方法去请求每日必应背景图
+  [2] loadBingPic() 方法中 ,先调用 HttpUtil.sendOkHttpRequest() 方法获取到必应背景图的连接 ,然后将这个链接
+    缓存到 SharePreference当中, 再将当前线程 切换到主线程
+
+
+ ** 将背景图和状态栏融合?
+ onCreate加载布局时 加入:
+            if (Build.VERSION.SDK_INT >= 21) {
+                    View decorView = getWindow().getDecorView();
+                   decorView.setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN | View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
+                    getWindow().setStatusBarColor(Color.TRANSPARENT);}
+
+ **状态栏 是否与 头布局 紧贴在一起?
+ 怎么为状态栏单独留出空间?
+   weather.xml 里面 的 ScrollView 的 LinearLayout  设置  fitsSystemWindows = "true"
+
+ */
+
+
 public class WeatherActivity extends AppCompatActivity {
 
     private ScrollView weatherLayout;
@@ -90,11 +120,26 @@ public class WeatherActivity extends AppCompatActivity {
     private TextView carWashText;
 
     private TextView sportText;
+
+    private ImageView bingPicImg;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        //背景图融合状态栏
+        if (Build.VERSION.SDK_INT >= 21) {
+            View decorView = getWindow().getDecorView();                            //当前veiw
+            decorView.setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN  //改UI显示 :这里表示活动布局显示在状态栏上面
+                    | View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
+            getWindow().setStatusBarColor(Color.TRANSPARENT);                       //状态栏设置成透明色
+        }
         setContentView(R.layout.activity_weather);
+
+
+
         // 初始化各控件
+        bingPicImg = (ImageView) findViewById(R.id.bing_pic_img);
+
         weatherLayout = (ScrollView) findViewById(R.id.weather_layout);
         titleCity = (TextView) findViewById(R.id.title_city);
         titleUpdateTime = (TextView) findViewById(R.id.title_update_time);
@@ -106,6 +151,8 @@ public class WeatherActivity extends AppCompatActivity {
         comfortText = (TextView) findViewById(R.id.comfort_text);
         carWashText = (TextView) findViewById(R.id.car_wash_text);
         sportText = (TextView) findViewById(R.id.sport_text);
+
+        
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
         String weatherString = prefs.getString("weather", null);
         if (weatherString != null) {
@@ -118,7 +165,18 @@ public class WeatherActivity extends AppCompatActivity {
             weatherLayout.setVisibility(View.INVISIBLE);
             requestWeather(weatherId);
         }
+
+
+
+
+        String bingPic = prefs.getString("bing_pic", null);
+        if (bingPic != null) {
+            Glide.with(this).load(bingPic).into(bingPicImg);
+        } else {
+            loadBingPic();
+        }
     }
+
 
     /**
      * 根据天气id请求城市天气信息。
@@ -158,7 +216,43 @@ public class WeatherActivity extends AppCompatActivity {
                 });
             }
         });
+
+        loadBingPic();
     }
+
+
+
+    /**
+     * 加载必应每日一图
+     */
+    private void loadBingPic() {
+        String requestBingPic = "http://guolin.tech/api/bing_pic";
+        HttpUtil.sendOkHttpRequest(requestBingPic, new Callback() {
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                final String bingPic = response.body().string();
+
+            //SharePreference存
+                SharedPreferences.Editor editor = PreferenceManager.getDefaultSharedPreferences(WeatherActivity.this).edit();
+                editor.putString("bing_pic", bingPic);
+                editor.apply();
+
+            //切换回主线程
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        Glide.with(WeatherActivity.this).load(bingPic).into(bingPicImg);
+                    }
+                });
+            }
+
+            @Override
+            public void onFailure(Call call, IOException e) {
+                e.printStackTrace();
+            }
+        });
+    }
+
 
 
     /**
