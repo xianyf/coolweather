@@ -4,6 +4,7 @@
     android:layout_width="match_parent"
     android:layout_height="?attr/actionBarSize">
 
+<!-- 加入一个按钮,让它左边显示,背景图,用户可以点击, DrawerLayout 的使用推荐需要一个按钮 -->
     <Button
         android:id="@+id/nav_button"
         android:layout_width="30dp"

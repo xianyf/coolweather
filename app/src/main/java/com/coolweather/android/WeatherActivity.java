@@ -5,6 +5,9 @@ import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
+import android.support.v4.view.GravityCompat;
+import android.support.v4.widget.DrawerLayout;
+import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.AppCompatActivity;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -41,7 +44,10 @@ import okhttp3.Response;
  又嵌套一个垂直方向的LinearLayout,然后将所有布局引入.
  */
 
+
+
 //-------------------------------------------------------------------------------------------------
+
 
 /**  将天气显示到界面上
 111
@@ -70,7 +76,9 @@ import okhttp3.Response;
    另外 ,还需要在MainActivity 中 加入一个 缓存数据 的判断才行 //
  */
 
+
 //-------------------------------------------------------------------------------------------------
+
 
 /**  每日一图
   [0] 在FrameLayout布局下,添加一个ImageView,宽高match_parent, 默认情况都是将控件放置左上角,因此ScrollView完全覆盖ImageView, ImageView就成了背景图
@@ -79,6 +87,8 @@ import okhttp3.Response;
     如果有缓存的话 ,就直接使用Glide 来加载这张图片 ,如果没有的话就调用 loadBingPic() 方法去请求每日必应背景图
   [2] loadBingPic() 方法中 ,先调用 HttpUtil.sendOkHttpRequest() 方法获取到必应背景图的连接 ,然后将这个链接
     缓存到 SharePreference当中, 再将当前线程 切换到主线程
+
+
 
 
  ** 将背景图和状态栏融合?
@@ -95,11 +105,57 @@ import okhttp3.Response;
  */
 
 
+//--------------------------------------------------------------------------------------------------
+
+/** 下拉刷新 功能  (SwipeRefreshLayout)
+ 1.在ScrollView布局外面 嵌套 一层 SwipeRefreshLayout ,这样ScrollView就自动 拥有下拉刷新 功能
+ 2.onCreate获取SwipeRefreshLayout的实例,然后调用 setColorSchemeResource()方法 设置 下拉刷新进度条颜色(colorPrimary)
+ 3.接着调用 setOnRefreshListener() 方法来设置 一个下拉刷新的监听器
+  当触发下拉刷新操作的时候,回调监听器的onRefresh()方法 ,我们这里调用requestWeather()方法 [这里需要一个 天气id weather]
+ 一种是 定义一个私有变量
+ 一种是 外部直接String变量 ,由于内部类需要使用该变量,所以还需要 final 修饰
+ 4.不要忘记 ,请求结束后,还需要SwipeRefreshLayout 的 setRefreshing() 方法并 传入false ,用于刷新事件结束,把刷新进度条隐藏
+
+
+
+
+ ** 切换城市 功能  (DrawerLayout)
+ 1.既然是切换城市功能 , 之前在ChooseAreaFragment 已经实现过了 ,现在其实需要在WeatherActivity 引入这个碎片, 就可以快速集成切换城市功能
+   (之前考虑为了后面的复用 ,特地选择在碎片当中实现)
+ 2.使用DrawerLayout / 把碎片放入 滑动菜单 是最合适
+   2.1 首先按照 Material Design 的建议, 需要在头布局 加入一个 "切换城市"按钮 ,让用户知道屏幕左边缘是可以拖动的
+   2.2 修改 title.xml 加入一个 button ...(之前已经加了)
+   2.3 修改 activity_weather.xml 布局来加入滑动菜单功能 (在SwipeRefreshLayout的外面 又嵌套了一层 DrawerLayout)
+        DrawerLayout 第一个子控件作为主屏幕显示的内容  ;  第二个子控件用于作为 滑动菜单中显示的内容
+        因此 ,在第二个子控件的位置 添加了 用于遍历 省市县数据的碎片
+   2.4 在WeatherActivity 处理加入滑动菜单的逻辑 ;
+        onCreate()方法获取 Btton和 DrawerLayout实例
+        Button点击事件中 调用 DrawerLayout的 openDrawer(GravityCompat.START)方法 打开滑动菜单 即可
+ 3.还没有结束 ..上面仅仅只是在打开 滑动菜单而已 ,还需要处理切换城市后的逻辑
+   3.1 在ChooseAreaFragment中进行,因为之前是选中了某个城市才跳转到 WeatherActivity ,由于现在本身就是在WeatherActivity中,不需要跳转
+       (只需要请求新选择城市 的天气信息 )
+   3.2 根据ChooseAreaFragment 的不同状态 进行不同的逻辑处理 :
+            if (getActivity() instanceof MainActivity)
+        else if (getActivity() instanceof WeatherActivity)     ---判断出碎片是在MainActivity中 还是 WeatherLayout中
+    #.----------------instanceof: 用来判断一个对象是否属于某个类的实例------------------
+      如果是在MainActivity中,处理逻辑不变
+      如果是在WeatherActivity中, 就关闭滑动菜单,显示下拉刷新进度条,然后请求新城市天气信息
+
+ 现在点击按钮或者滑动左侧边缘 ,滑动菜单界面会显示出来;
+ 你可以切换其他省市县 ,当最后选中"县"这个级别的城市时,滑动菜单会关闭,显示下拉刷新进度条,然后会请求新的城市天气信息 ,这样天气界面的信息会更新成你选中的城市
+  */
+
 public class WeatherActivity extends AppCompatActivity {
 
-    private ScrollView weatherLayout;
-
+//  滑动控件
+    public DrawerLayout drawerLayout;
     private Button navButton;
+
+//  下拉刷新控件
+    public SwipeRefreshLayout swipeRefresh;
+    private String weatherId;                     //私有成员变量,  天气id
+
+    private ScrollView weatherLayout;
 
     private TextView titleCity;
 
@@ -152,20 +208,44 @@ public class WeatherActivity extends AppCompatActivity {
         carWashText = (TextView) findViewById(R.id.car_wash_text);
         sportText = (TextView) findViewById(R.id.sport_text);
 
-        
+//    下拉控件
+        swipeRefresh = (SwipeRefreshLayout) findViewById(R.id.swipe_refresh);
+        swipeRefresh.setColorSchemeResources(R.color.colorPrimary);
+
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
         String weatherString = prefs.getString("weather", null);
+
+
+//      final String weatherId;                                          在类中定义 String  weatherId 也可以
         if (weatherString != null) {
             // 有缓存时直接解析天气数据
             Weather weather = Utility.handleWeatherResponse(weatherString);
+              weatherId = weather.basic.weatherId;
             showWeatherInfo(weather);
         } else {
-            // 无缓存时去服务器查询天气
-            String weatherId = getIntent().getStringExtra("weather_id");
+            // 无缓存时去服务器查询天气  (第一次,肯定是从传入的Intent 参数 获取 weatherId)
+             weatherId = getIntent().getStringExtra("weather_id");
             weatherLayout.setVisibility(View.INVISIBLE);
             requestWeather(weatherId);
         }
 
+//   下拉刷新
+        swipeRefresh.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
+            @Override
+            public void onRefresh() {
+                requestWeather(weatherId);                                  //但是 一旦在 内部类 使用 变量 ,外部类定义应该fianl修饰
+            }
+        });
+
+//   滑动菜单
+        drawerLayout = (DrawerLayout) findViewById(R.id.drawer_layout);
+        navButton = (Button) findViewById(R.id.nav_button);
+        navButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                drawerLayout.openDrawer(GravityCompat.START);
+            }
+        });
 
 
 
@@ -183,6 +263,7 @@ public class WeatherActivity extends AppCompatActivity {
      */
     public void requestWeather(final String weatherId) {
         String weatherUrl = "https://api.heweather.com/x3/weather?cityid=" + weatherId + "&key=bc0418b57b2d4918819d3974ac1285d9";
+
         HttpUtil.sendOkHttpRequest(weatherUrl, new Callback() {
             @Override
             public void onResponse(Call call, Response response) throws IOException {
@@ -201,6 +282,8 @@ public class WeatherActivity extends AppCompatActivity {
                         } else {
                             Toast.makeText(WeatherActivity.this, "获取天气信息失败", Toast.LENGTH_SHORT).show();
                         }
+//   请求结束, 刷新事件也跟着结束 并且隐藏刷新进度条
+                        swipeRefresh.setRefreshing(false);
                     }
                 });
             }
@@ -212,7 +295,10 @@ public class WeatherActivity extends AppCompatActivity {
                     @Override
                     public void run() {
                         Toast.makeText(WeatherActivity.this, "获取天气信息失败", Toast.LENGTH_SHORT).show();
+//   请求结束, 刷新事件也跟着结束 并且隐藏刷新进度条
+                        swipeRefresh.setRefreshing(false);
                     }
+
                 });
             }
         });

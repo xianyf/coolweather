@@ -129,33 +129,44 @@ public class ChooseAreaFragment extends Fragment {
         listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                if (currentLevel == LEVEL_PROVINCE) {
+                if (currentLevel == LEVEL_PROVINCE) {                               //省
                     selectedProvince = provinceList.get(position);
                     queryCities();
-                } else if (currentLevel == LEVEL_CITY) {
+                } else if (currentLevel == LEVEL_CITY) {                            //市
                     selectedCity = cityList.get(position);
                     queryCounties();
                 }
 
-                else if (currentLevel == LEVEL_COUNTY) {
+                else if (currentLevel == LEVEL_COUNTY) {                            //县
                     String weatherId = countyList.get(position).getWeatherId();
+
+
                     if (getActivity() instanceof MainActivity) {
                         Intent intent = new Intent(getActivity(), WeatherActivity.class);
                         intent.putExtra("weather_id", weatherId);
                         startActivity(intent);
                         getActivity().finish();
                     }
+ /**  判断出碎片是在MainActivity中 还是 WeatherLayout中
+  *   if (getActivity() instanceof MainActivity)
+  *   else if (getActivity() instanceof WeatherActivity)
 
-                    /*else if (getActivity() instanceof WeatherActivity) {
+        #.----------------instanceof: 用来判断一个对象是否属于某个类的实例------------------
+            如果是在MainActivity中,处理逻辑不变
+            如果是在WeatherActivity中, 就关闭滑动菜单,显示下拉刷新进度条,然后请求新城市天气信息
+ */
+                    else if (getActivity() instanceof WeatherActivity) {
                         WeatherActivity activity = (WeatherActivity) getActivity();
                         activity.drawerLayout.closeDrawers();
                         activity.swipeRefresh.setRefreshing(true);
                         activity.requestWeather(weatherId);
-                    }*/
+                    }
                 }
 
             }
         });
+
+
 
         backButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -171,6 +182,7 @@ public class ChooseAreaFragment extends Fragment {
 
         //不计点击事件,最后 调用一个方法查省份
      queryProvinces();
+
     }
 
 

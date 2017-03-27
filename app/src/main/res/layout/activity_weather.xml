@@ -12,7 +12,21 @@
         android:src="@drawable/bg"
         android:scaleType="centerCrop" />
 
-            <ScrollView
+
+<!--滑动菜单控件 ,嵌套 .第一个子控件是屏幕显示的主体(下拉布局) ; 第二个子控件是滑动菜单显示的内容(fragment) -->
+    <android.support.v4.widget.DrawerLayout
+        android:id="@+id/drawer_layout"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+
+    <!--下拉刷新控件 ,嵌套 .这样ScrollView就自动拥有下拉刷新功能 -->
+    <android.support.v4.widget.SwipeRefreshLayout
+        android:id="@+id/swipe_refresh"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+    <ScrollView
                 android:id="@+id/weather_layout"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
@@ -41,5 +55,17 @@
 
             </ScrollView>
 
+    </android.support.v4.widget.SwipeRefreshLayout>
 
+
+     <!-- 第二个控件 : 把ChooseAreaFragment引入-->
+        <fragment
+            android:id="@+id/choose_area_fragment"
+            android:name="com.coolweather.android.ChooseAreaFragment"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_gravity="start"
+            />
+
+    </android.support.v4.widget.DrawerLayout>
 </FrameLayout>
