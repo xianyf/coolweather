@@ -1,5 +1,6 @@
 package com.coolweather.android;
 
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.os.Build;
@@ -21,6 +22,7 @@ import android.widget.Toast;
 import com.bumptech.glide.Glide;
 import com.coolweather.android.gson.Forecast;
 import com.coolweather.android.gson.Weather;
+import com.coolweather.android.service.AutoUpdateService;
 import com.coolweather.android.util.HttpUtil;
 import com.coolweather.android.util.Utility;
 
@@ -212,10 +214,9 @@ public class WeatherActivity extends AppCompatActivity {
         swipeRefresh = (SwipeRefreshLayout) findViewById(R.id.swipe_refresh);
         swipeRefresh.setColorSchemeResources(R.color.colorPrimary);
 
+     /**SharePreference缓存是否有数据*/
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
         String weatherString = prefs.getString("weather", null);
-
-
 //      final String weatherId;                                          在类中定义 String  weatherId 也可以
         if (weatherString != null) {
             // 有缓存时直接解析天气数据
@@ -223,7 +224,7 @@ public class WeatherActivity extends AppCompatActivity {
               weatherId = weather.basic.weatherId;
             showWeatherInfo(weather);
         } else {
-            // 无缓存时去服务器查询天气  (第一次,肯定是从传入的Intent 参数 获取 weatherId)
+            /** 无缓存时去服务器查询天气  (第一次,肯定是从传入的Intent 参数 获取 weatherId)  */
              weatherId = getIntent().getStringExtra("weather_id");
             weatherLayout.setVisibility(View.INVISIBLE);
             requestWeather(weatherId);
@@ -379,6 +380,10 @@ public class WeatherActivity extends AppCompatActivity {
         carWashText.setText(carWash);
         sportText.setText(sport);
         weatherLayout.setVisibility(View.VISIBLE);
+
+ /**选中城市并成功更新天气后 ,激活AutoUpdateService,后台8小时自动更新天气*/
+        Intent intent = new Intent(this, AutoUpdateService.class);
+        startService(intent);
     }
 
 }
